@@ -60,7 +60,7 @@ with tab1:
 
 
     #Graphs
-    #Clients per Marital Status (fará sentido ver os clientes ativos se calhar)
+    #Clients per Marital Status (fará sentido ver os clientes ativos e cancelled estes ficavam nas cores)
     st.subheader("Clients per Marital Status")
     state_counts = filtered_customers['Marital Status'].value_counts().reset_index()
     state_counts.columns = ['Marital Status', 'Count']
@@ -103,7 +103,7 @@ with tab1:
     )
 
     st.plotly_chart(fig, use_container_width=True)
-    
+
     #number of active customers with location code (falta fazer os clientes ativos)
     st.subheader("Location Code")
     state_counts = filtered_customers['Location Code'].value_counts().reset_index()
@@ -122,8 +122,6 @@ with tab1:
         showlegend=False
     )
     st.plotly_chart(fig)
-
-
 
     # Show sample of the data
     st.subheader("📋 Customer Database")
