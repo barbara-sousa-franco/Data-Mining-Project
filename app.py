@@ -28,103 +28,148 @@ with tab1:
     # Create filters
     states = sorted(customers['Province or State'].dropna().unique())
     cities = sorted(customers['City'].dropna().unique())
+    active = customers['ChurnStatus'].dropna().astype(str).str.strip().unique().tolist()
 
     states_options = ['All'] + states
     cities_options = ['All'] + cities
+    active_options = ['All'] + active
+
 
     selected_state = st.sidebar.multiselect('Choose the Province/State:', options=states_options, default=['All'])
     selected_city = st.sidebar.multiselect('Choose the City:', options=cities_options, default=['All'])
-
+    selected_active = st.sidebar.multiselect('Choose Active or Cancelled costumer:', options=active_options, default=['All'])
 
     # Call function apply_all()
     state_filter = apply_all(selected_state, states)
     city_filter = apply_all(selected_city, cities)
+    active_filter = apply_all(selected_active, active)
 
 
     filtered_customers = customers[
         (customers['Province or State'].isin(state_filter)) &
-        (customers['City'].isin(city_filter))]
-
-    # Boxs
+        (customers['City'].isin(city_filter)) &
+        customers['ChurnStatus'].isin(active_filter)]
+    
+    # KPI's
+    st.header("KPI's")
+    col1, col2, col3 = st.columns(3)
     # Calculate the CLV average
-    mean_clv = filtered_customers['Customer Lifetime Value'].mean()
-    st.metric("Average CLV", f"{mean_clv:,.2f}$") # Show result
+    with col1:
+        mean_clv = filtered_customers['Customer Lifetime Value'].mean()
+        st.metric("Average CLV", f"{mean_clv:,.2f}$") # Show result
 
-    # Average time at the programme in months
-    mean_prog_time = round(filtered_customers['Months_In_Program'].mean(), 0)
-    st.metric("Average Time at the programme", f"{mean_prog_time:.1f} months") # Show result
+    with col2:
+        # Average time at the programme in months
+        mean_prog_time = round(filtered_customers['Months_In_Program'].mean(), 0)
+        st.metric("Average Time at the programme", f"{mean_prog_time:.0f} months") # Show result
 
-    # Active customers
-    active_customers = (filtered_customers['ChurnStatus'] == 'Active').dropna().mean() 
-    st.metric("Active Customers", f"{active_customers:.2%}")
-
+    with col3:
+        # Active customers
+        active_customers_mean = (filtered_customers['ChurnStatus'] == 'Active').dropna().mean()
+        st.metric("Active Customers", f"{active_customers_mean:.2%}") # Show result
 
     #Graphs
-    #Clients per Marital Status (fará sentido ver os clientes ativos e cancelled estes ficavam nas cores)
-    st.subheader("Clients per Marital Status")
-    state_counts = filtered_customers['Marital Status'].value_counts().reset_index()
-    state_counts.columns = ['Marital Status', 'Count']
-    fig = px.bar(
-        state_counts,
-        x='Marital Status',
-        y='Count',
-        color='Marital Status'
-    )
-    fig.update_layout(
-        xaxis_title='Marital Status',
-        yaxis_title='Number of Clients',
-        plot_bgcolor='white',
-        paper_bgcolor='white',
-        showlegend=False
-    )
-    st.plotly_chart(fig)
+    st.header("Graphs")
+    col1, col2 = st.columns(2)
+    with col1:
+        # Number of Clients per Marital Status
+        marital_counts = filtered_customers['Marital Status'].value_counts().reset_index()
+        marital_counts.columns = ['Marital Status', 'Count']
+        fig = px.bar(
+            marital_counts,
+            x='Marital Status',
+            y='Count',
+            color='Marital Status',
+            title='Number of Clients per Marital Status'
+        )
+        fig.update_layout(
+            xaxis_title='Marital Status',
+            yaxis_title='Number of Clients',
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            showlegend=False
+        )
+        st.plotly_chart(fig)
 
-    #CLV education
-    st.subheader('Customer Lifetime Value customers per Education level')
-    clv_sum_by_education=(
-        filtered_customers
-        .groupby('Education', as_index=False)['Customer Lifetime Value']
-        .sum()
-        .sort_values(by='Customer Lifetime Value', ascending=False)
-    )
-    fig=px.bar(
-        clv_sum_by_education,
-        x='Education',
-        y='Customer Lifetime Value',
-        color='Education',
-        title='CLV per Education Level'
-    )
-    fig.update_layout(
-        xaxis_title='Education Level',
-        yaxis_title='Customer Lifetime Value ($)',
-        plot_bgcolor='white',
-        paper_bgcolor='white',
-        showlegend=False
-    )
+        #CLV by Most Frequent Season
+        clv_by_season = (
+            filtered_customers
+            .groupby('MostFrequentSeason', as_index=False)['Customer Lifetime Value']
+            .sum()
+            .sort_values(by='Customer Lifetime Value', ascending=False)
+        )
 
-    st.plotly_chart(fig, use_container_width=True)
+        fig = px.bar(
+            clv_by_season,
+            x='MostFrequentSeason',
+            y='Customer Lifetime Value',
+            color='MostFrequentSeason',
+            title='Total Customer Lifetime Value per most frequent Season'
+        )
+        fig.update_layout(
+            xaxis_title='Most Frequent Season',
+            yaxis_title='Total Customer Lifetime Value ($)',
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            showlegend=False
+        )
+        st.plotly_chart(fig)
 
-    #number of active customers with location code (falta fazer os clientes ativos)
-    st.subheader("Location Code")
-    state_counts = filtered_customers['Location Code'].value_counts().reset_index()
-    state_counts.columns = ['Location Code', 'Count']
-    fig = px.bar(
-        state_counts,
-        x='Location Code',
-        y='Count',
-        color='Location Code'
-    )
-    fig.update_layout(
-        xaxis_title='Location Code',
-        yaxis_title='Location Code',
-        plot_bgcolor='white',
-        paper_bgcolor='white',
-        showlegend=False
-    )
-    st.plotly_chart(fig)
 
+    with col2:
+        # CLV Education
+        clv_sum_by_education=(
+            filtered_customers
+            .groupby('Education', as_index=False)['Customer Lifetime Value']
+            .sum()
+            .sort_values(by='Customer Lifetime Value', ascending=False)
+        )
+        fig=px.bar(
+            clv_sum_by_education,
+            x='Education',
+            y='Customer Lifetime Value',
+            color='Education',
+            title='CLV per Education Level'
+        )
+        fig.update_layout(
+            xaxis_title='Education Level',
+            yaxis_title='Customer Lifetime Value ($)',
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            showlegend=False
+        )
+
+        st.plotly_chart(fig)
+
+
+        # Flights with Companions by Marital Status
+        filtered_customers['TotalFlightsWithCompanions'] = filtered_customers['TotalFlightsWithCompanions'].fillna(0)
+        flights_with_companions = (
+            filtered_customers
+            .groupby('Marital Status', as_index=False)['TotalFlightsWithCompanions']
+            .sum()
+            .sort_values(by='TotalFlightsWithCompanions', ascending=False)
+        )
+
+        fig = px.bar(
+            flights_with_companions,
+            x='Marital Status',
+            y='TotalFlightsWithCompanions',
+            color='Marital Status',
+            title='Flights with Companions per Marital Status'
+        )
+
+        fig.update_layout(
+            xaxis_title='Marital Status',
+            yaxis_title='Total Flights WithCompanions',
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            showlegend=False
+        )
+
+        st.plotly_chart(fig)
     # Show sample of the data
-    st.subheader("📋 Customer Database")
+    st.subheader("Customer Raw Data")
     st.dataframe(filtered_customers.head())
 
 #Flights Activity
@@ -133,6 +178,7 @@ with tab2:
     st.sidebar.header("Filters Flights")
     st.header('Flights Activity')
 
+    # Filters
     years = sorted(flights['Year'].dropna().unique())
     months = sorted(flights['Month'].dropna().unique())
 
@@ -150,19 +196,20 @@ with tab2:
         (flights['Year'].isin(year_filter)) &
         (flights['Month'].isin(month_filter))]
 
+    # KPI's
+    st.header("KPI's")
     # Rate of points redeemed vs points accumulated
     redeemed_points_rate = filtered_flights['PointsRedeemed'].dropna().sum() / filtered_flights['PointsAccumulated'].dropna().sum()
     st.metric(f"Rate of Redeemed Points vs Accumulated Points", f"{redeemed_points_rate:.2%}") # Show result
 
     #Proportion of flights
     number_of_flights = filtered_flights['NumFlights'].dropna().sum()
-    st.metric(f"Number of flights", f"{number_of_flights:.1f}") #show result
-
+    st.metric(f"Number of flights", f"{number_of_flights:,.0f}") #show result
 
 
 
     # Show sample of the data
-    st.subheader("📋 Flights Database")
+    st.subheader("Flights Raw Data")
     st.dataframe(filtered_flights.head())
 
 
