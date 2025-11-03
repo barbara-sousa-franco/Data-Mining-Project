@@ -7,10 +7,10 @@ st.title("AIAI Management Analysis")
 
 # Read the data
 customers = pd.read_csv("customers_clean.csv")
-flights = pd.read_csv("DM_AIAI_FlightsDB.csv")
+flights = pd.read_csv("flights_clean.csv")
 
 #to use 2 different data sets in the same dashboard, we are going to divide into two tabs
-tab1, tab2 = st.tabs(['customers', 'flights'])
+tab1, tab2 = st.tabs(['Customers', 'Flights'])
 
 # Define 'All' in filters to be able to select all the values when filtering
 def apply_all(selected, all):
@@ -168,9 +168,9 @@ with tab1:
         )
 
         st.plotly_chart(fig)
-    # Show sample of the data
-    st.subheader("Customer Raw Data")
-    st.dataframe(filtered_customers.head())
+        # Show sample of the data
+        st.subheader("Customer Raw Data")
+        st.dataframe(filtered_customers.head())
 
 #Flights Activity
 with tab2:
@@ -206,6 +206,31 @@ with tab2:
     number_of_flights = filtered_flights['NumFlights'].dropna().sum()
     st.metric(f"Number of flights", f"{number_of_flights:,.0f}") #show result
 
+
+    st.header("Top 10 Flyers")
+    # Garantir que a coluna NumFlights não tem valores nulos
+    filtered_flights['NumFlights'] = filtered_flights['NumFlights'].fillna(0)
+
+    # Somar o número total de voos por cliente (Loyalty#)
+    top_travelers = (
+        filtered_flights.groupby('Loyalty#', as_index=False)['NumFlights']
+        .sum()
+        .sort_values(by='NumFlights', ascending=False)
+        .head(10)
+    )
+
+    # Juntar com o nome do cliente (opcional)
+    top_travelers = top_travelers.merge(
+        filtered_customers[['Loyalty#', 'Customer Name', 'Country']],
+        on='Loyalty#',
+        how='left'
+    )
+
+    # Reordenar colunas para melhor visualização
+    top_travelers = top_travelers[['Loyalty#', 'Customer Name', 'Country', 'NumFlights']]
+
+    # Mostrar tabela no Streamlit
+    st.dataframe(top_travelers, use_container_width=True)
 
 
     # Show sample of the data
