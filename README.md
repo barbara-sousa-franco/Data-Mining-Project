@@ -18,7 +18,7 @@ Now you're ready to work
 **STEP 3:**
 When you finish
 - Save your work (Control+S)
-- git add .
+- git add . (if you only want to add 1 document: git add document.extension)
 - git commit -m "message"
 - git push origin your-branch
 
@@ -30,4 +30,5 @@ Atualize main
 - git pull origin main
 - git merge your-branch
 - git push origin main
+
 
