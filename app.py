@@ -9,6 +9,9 @@ st.title("AIAI Management Analysis")
 customers = pd.read_csv("customers_clean.csv") #new data with new features from customersDB
 flights = pd.read_csv("flights_clean.csv") #new data with new features from flightsDB
 
+#define color of the data
+business_blue = px.colors.sequential.Blues_r
+
 #to use 2 different data sets in the same dashboard, we are going to divide into two tabs
 tab1, tab2 = st.tabs(['Customers Analysis', 'Flights Analysis'])
 
@@ -56,7 +59,8 @@ with tab1:
     # Calculate the CLV average
     with col1:
         mean_clv = filtered_customers['Customer Lifetime Value'].mean()
-        st.metric("Average CLV", f"{mean_clv:,.2f}$") # Show result
+        mean_clv_k = mean_clv / 1000
+        st.metric("Average CLV", f"{mean_clv_k:,.1f}k$") # Show result
 
     with col2:
         # Average time at the programme in months
@@ -76,6 +80,7 @@ with tab1:
             values='Count',
             color='Gender',
             title='Distribution by Gender',
+            color_discrete_sequence=business_blue,
             hole=0.4  # Donut chart
         )
         fig.update_traces(textinfo='percent+label')
@@ -92,6 +97,7 @@ with tab1:
             values='Count',
             color='ChurnStatus',
             title='Active vs Cancelled Customer',
+            color_discrete_sequence=business_blue,
             hole=0.4  # Donut chart
         )
         fig.update_traces(textinfo='percent+label')
@@ -108,6 +114,7 @@ with tab1:
             values='Count',
             color='LoyaltyStatus',
             title='LoyaltyStatus',
+            color_discrete_sequence=business_blue,
             hole=0.4  # Donut chart
         )
         fig.update_traces(textinfo='percent+label')
@@ -117,9 +124,9 @@ with tab1:
     st.header("Graphs")
 
     #Cancellations over time
-    customers["CancellationDate_Datetime"] = pd.to_datetime(customers["CancellationDate_Datetime"], errors="coerce")
-    cancellations = customers.dropna(subset=["CancellationDate_Datetime"]).copy()
-    cancellations["YearMonth"] = cancellations["CancellationDate_Datetime"].dt.to_period("M").astype(str)
+    customers["CancellationDate"] = pd.to_datetime(customers["CancellationDate"], errors="coerce")
+    cancellations = customers.dropna(subset=["CancellationDate"]).copy()
+    cancellations["YearMonth"] = cancellations["CancellationDate"].dt.to_period("M").astype(str)
     cancellations_over_time = (
         cancellations.groupby("YearMonth")
         .size()
@@ -131,6 +138,7 @@ with tab1:
         y="NumCancellations",
         markers=True,
         title="Customer Cancellations Over Time",
+        color_discrete_sequence=business_blue
     )
     fig.update_layout(
         xaxis_title="Year-Month",
@@ -141,8 +149,8 @@ with tab1:
     st.plotly_chart(fig, use_container_width=True)
 
     #Cancellations and Enrollments by seasons
-    customers["EnrollmentDateOpening_Datetime"] = pd.to_datetime(customers["EnrollmentDateOpening_Datetime"], errors="coerce")
-    customers["CancellationDate_Datetime"] = pd.to_datetime(customers["CancellationDate_Datetime"], errors="coerce")
+    customers["CorrectedEnrollmentDate"] = pd.to_datetime(customers["CorrectedEnrollmentDate"], errors="coerce")
+    customers["CancellationDate"] = pd.to_datetime(customers["CancellationDate"], errors="coerce")
     def get_season(date):
         if pd.isnull(date):
             return None
@@ -155,24 +163,24 @@ with tab1:
             return "Summer"
         else:
             return "Autumn"
-    customers["EnrollmentSeason"] = customers["EnrollmentDateOpening_Datetime"].apply(get_season)
-    customers["CancellationSeason"] = customers["CancellationDate_Datetime"].apply(get_season)
+    customers["EnrollmentSeason"] = customers["CorrectedEnrollmentDate"].apply(get_season)
+    customers["CancellationSeason"] = customers["CancellationDate"].apply(get_season)
     enrollments = (
         customers["EnrollmentSeason"]
         .value_counts()
         .rename_axis("Season")
-        .reset_index(name="NewCustomers")
+        .reset_index(name="Newly Enrolled Customers")
     )
     cancellations = (
         customers["CancellationSeason"]
         .value_counts()
         .rename_axis("Season")
-        .reset_index(name="CancelledCustomers")
+        .reset_index(name="Cancelled Customers")
     )
     season_summary = pd.merge(enrollments, cancellations, on="Season", how="outer").fillna(0)
     season_summary_melted = season_summary.melt(
         id_vars="Season",
-        value_vars=["NewCustomers", "CancelledCustomers"],
+        value_vars=["Newly Enrolled Customers", "Cancelled Customers"],
         var_name="CustomerType",
         value_name="Count"
     )
@@ -182,7 +190,8 @@ with tab1:
         y="Count",
         color="CustomerType",
         barmode="group",
-        title="New vs Cancelled Customers by Season"
+        title="New vs Cancelled Customers by Season",
+        color_discrete_sequence=business_blue
     )
     fig.update_layout(
         xaxis_title="Season",
@@ -192,53 +201,8 @@ with tab1:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        #Number of Clients by Category
-        options = [
-            "Gender",
-            "Education",
-            "Marital Status",
-            "Income_Category",
-            "CLV_Category"
-            "LoyaltyStatus",
-            "Province or State",
-            "City",
-            "Location Code",
-            "EnrollmentType"
-            ]
-        
-        selected_var = st.selectbox("Choose the variable:", options, key="clients_count")
-
-        clients_count = (filtered_customers[selected_var].value_counts().reset_index())
-        clients_count.columns = [selected_var, 'Count']
-
-        # Graph
-        fig = px.bar(
-            clients_count,
-            x=selected_var,
-            y='Count',
-            color=selected_var,
-            text_auto=".2s",
-            title=f"Number of Clients by {selected_var}"
-        )
-
-        # Layout
-        fig.update_layout(
-            xaxis_title=selected_var,
-            yaxis_title="Number of Clients",
-            plot_bgcolor='white',
-            paper_bgcolor='white',
-            showlegend=False
-        )
-        #Show Result
-        st.plotly_chart(fig, use_container_width=True)
-
-    with col2:
-        # CLV per categories
-        options = [
+    # Combined Chart: Number of Clients & Total CLV per Category
+    options = [
         "Gender",
         "Education",
         "Marital Status",
@@ -248,35 +212,48 @@ with tab1:
         "City",
         "Location Code",
         "EnrollmentType"
-        ]
+    ]
 
-        selected_var = st.selectbox("Choose the variable:", options, key="clv_category")
+    selected_var = st.selectbox("Choose the variable:", options, key="clients_clv_combo")
 
-        clv_sum = (
-            filtered_customers
-            .groupby(selected_var, as_index=False)['Customer Lifetime Value']
-            .sum()
-            .sort_values(by='Customer Lifetime Value', ascending=False)
-        )
+    clients_count = (
+        filtered_customers[selected_var]
+        .value_counts()
+        .reset_index()
+    )
+    clients_count.columns = [selected_var, 'Number of Clients']
 
-        # Graph
-        fig = px.bar(
-            clv_sum,
-            x=selected_var,
-            y='Customer Lifetime Value',
-            color=selected_var,
-            text_auto=".2s",
-            title=f"Total Customer Lifetime Value by {selected_var}"
-        )
-        # Layout
-        fig.update_layout(
-            xaxis_title=selected_var,
-            yaxis_title='Customer Lifetime Value ($)',
-            plot_bgcolor='white',
-            paper_bgcolor='white',
-            showlegend=False
-        )
-        st.plotly_chart(fig, use_container_width=True)
+    clv_sum = (
+        filtered_customers
+        .groupby(selected_var, as_index=False)['Customer Lifetime Value']
+        .sum()
+    )
+    clv_sum.columns = [selected_var, 'Total CLV']
+    combined_df = clients_count.merge(clv_sum, on=selected_var, how='outer')
+    combined_df['Total CLV (k$)'] = combined_df['Total CLV'] / 1000
+
+    fig = px.bar(
+        combined_df.melt(id_vars=selected_var, value_vars=['Number of Clients', 'Total CLV (k$)']),
+        x=selected_var,
+        y='value',
+        color='variable',
+        barmode='group',
+        text_auto=".2s",
+        title=f"Number of Clients and Total CLV by {selected_var}",
+        color_discrete_sequence=business_blue
+    )
+
+    # Layout
+    fig.update_layout(
+        xaxis_title=selected_var,
+        yaxis_title="Value",
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        legend_title_text='Metric',
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
 
 
 #Flights Activity
@@ -313,9 +290,10 @@ with tab2:
         st.metric(f"Redeemed Points vs Accumulated Points", f"{redeemed_points_rate:.2%}") # Show result
 
     with col2:
-        #Proportion of flights
+        #Number of flights
         number_of_flights = filtered_flights['NumFlights'].dropna().sum()
-        st.metric(f"Number of flights", f"{number_of_flights:,.0f}") #show result
+        number_of_flights_M = number_of_flights / 1_000_000
+        st.metric(f"Number of flights", f"{number_of_flights_M:,.1f}M") #show result
 
     with col3:
         # Flights with companions (%)
@@ -325,7 +303,6 @@ with tab2:
             if filtered_flights['NumFlights'].dropna().sum() > 0 else 0
         )
         st.metric("Flights with Companions (%)", f"{perc_with_companions:.2%}")
-
 
     # 2 LINE GRAPH - NumFlights and NumFlightswithCompanions
     monthly_trends = (
@@ -341,6 +318,7 @@ with tab2:
         x="YearMonth",
         y=["NumFlights", "NumFlightsWithCompanions"],
         title="Monthly Trends: Total Flights vs Flights with Companions",
+        color_discrete_sequence=business_blue,
         markers=True
     )
     # Layout
@@ -366,7 +344,8 @@ with tab2:
         y="NumFlights",
         color="Season",
         text_auto=".2s",
-        title="Number of Flights by Season"
+        title="Number of Flights by Season",
+        color_discrete_sequence=business_blue
     )
     fig.update_layout(
         xaxis_title="Season",
@@ -376,14 +355,14 @@ with tab2:
         showlegend=False
     )
     st.plotly_chart(fig, use_container_width=True)
-
+    
     # Type of person with the most flights
     options = [
     "Gender",
     "Education",
     "Marital Status",
     "Income_Category",
-    "CLV_Category"
+    "CLV_Category",
     "LoyaltyStatus",
     "Province or State",
     "City",
@@ -391,73 +370,52 @@ with tab2:
     "EnrollmentType"
     ]
 
-    selected_var = st.selectbox("Choose the variable:", options, key='flights_total')
-    flights_by_type = (
+    selected_var = st.selectbox("Choose the variable:", options, key='flights_combined')
+    flights_total = (
         customers.groupby(selected_var, as_index=False)["TotalFlights"]
         .sum()
-        .sort_values("TotalFlights", ascending=False)
     )
 
-    # Graph
-    fig = px.bar(
-        flights_by_type,
-        x=selected_var,
-        y="TotalFlights",
-        color=selected_var,
-        text_auto=".2s",
-        title=f"Total Number of Flights by {selected_var}"
-    )
-
-    # Layout
-    fig.update_layout(
-        xaxis_title=selected_var,
-        yaxis_title="Total Number of Flights",
-        plot_bgcolor="white",
-        paper_bgcolor="white",
-        showlegend=False
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
-
-
-    # Type of person with the most flights with companions
-    options = [
-    "Gender",
-    "Education",
-    "Marital Status",
-    "Income_Category",
-    "CLV_Category"
-    "LoyaltyStatus",
-    "Province or State",
-    "City",
-    "Location Code",
-    "EnrollmentType"
-    ]
-
-    selected_var = st.selectbox("Choose the variable:", options, key='flights_companions')
-    flights_by_type = (
+    flights_companions = (
         customers.groupby(selected_var, as_index=False)["TotalFlightsWithCompanions"]
         .sum()
-        .sort_values("TotalFlightsWithCompanions", ascending=False)
     )
+
+    flights_combined = pd.merge(
+        flights_total,
+        flights_companions,
+        on=selected_var,
+        how="outer"
+    ).fillna(0)
+
+    # Group bar plot
+    flights_melted = flights_combined.melt(
+        id_vars=selected_var,
+        value_vars=["TotalFlights", "TotalFlightsWithCompanions"],
+        var_name="FlightType",
+        value_name="Flights"
+    )
+
 
     # Graph
     fig = px.bar(
-        flights_by_type,
+        flights_melted,
         x=selected_var,
-        y="TotalFlightsWithCompanions",
-        color=selected_var,
+        y="Flights",
+        color="FlightType",
+        barmode="group",
         text_auto=".2s",
-        title=f"Total Number of Flights with Companions by {selected_var}"
+        title=f"Total Flights vs Flights with Companions by {selected_var}",
+        color_discrete_sequence=business_blue
     )
 
     # Layout
     fig.update_layout(
         xaxis_title=selected_var,
-        yaxis_title="Total Number of Flights with Companions",
+        yaxis_title="Number of Flights",
         plot_bgcolor="white",
         paper_bgcolor="white",
-        showlegend=False
+        legend_title_text="Flight Type"
     )
 
     st.plotly_chart(fig, use_container_width=True)
@@ -474,9 +432,30 @@ with tab2:
     )
     # Merge Flights with customer
     top_travelers = top_travelers.merge(
-        filtered_customers[['Loyalty#', 'Customer Name', 'Country']],
+        filtered_customers[['Loyalty#', 'Customer Name', 'Province or State', 'Education', 'Gender', 'Marital Status', 'LoyaltyStatus', 'Customer Lifetime Value']],
         on='Loyalty#',
         how='left'
     )
-    top_travelers = top_travelers[['Loyalty#', 'Customer Name', 'Country', 'NumFlights']]
+    top_travelers = top_travelers[['Loyalty#', 'Customer Name', 'NumFlights', 'Province or State', 'Education', 'Gender', 'Marital Status', 'LoyaltyStatus', 'Customer Lifetime Value']]
     st.dataframe(top_travelers, use_container_width=True) # Show result
+
+    st.header("Top 10 Point Redeemers")
+    #TOP 10 points redeemers
+    top_redeemers = (
+        filtered_flights.dropna(subset=["PointsRedeemed"])
+        .groupby("Loyalty#", as_index=False)[["PointsAccumulated", "PointsRedeemed", "NumFlights"]]
+        .sum()
+        .sort_values(by="PointsRedeemed", ascending=False)
+        .head(10)
+    )
+
+    top_redeemers = top_redeemers.merge(
+        filtered_customers[['Loyalty#', 'Customer Name', 'Province or State', 'Education', 'Gender', 'Marital Status', 'LoyaltyStatus', 'Customer Lifetime Value']],
+        on="Loyalty#",
+        how="left"
+    )
+
+    top_redeemers = top_redeemers[['Loyalty#', 'Customer Name', 'NumFlights', 'Province or State', 'Education', 'Gender', 'Marital Status', 'LoyaltyStatus', 'Customer Lifetime Value', 'PointsAccumulated', 'PointsRedeemed']]
+
+    # Show DataFrame
+    st.dataframe(top_redeemers, use_container_width=True)
