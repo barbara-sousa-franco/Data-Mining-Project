@@ -1735,3 +1735,46 @@ def plot_multiple_stacked_bars(df, features, top_n=5, n_cols=3, figsize_per_bar=
     # Adjust layout to prevent overlapping elements
     plt.tight_layout()
     plt.show()
+
+
+
+# -------------------------------------------------- FEATURE IMPORTANCE AND RECLASSIFY OUTLIERS ------------------------------------------------------ #
+
+def get_ss_variables(df):
+    """
+    Get the SS for each variable
+
+    Parameters:
+    --------------------------------------------------------
+    df : pandas.DataFrame
+        DataFrame containing the data.
+
+    Returns:
+    --------------------------------------------------------
+    ss_vars : pandas.Series
+        Series containing the sum of squares for each variable.
+    """
+    ss_vars = df.var() * (df.count() - 1)
+    return ss_vars
+
+
+def r2_variables(df, labels):
+    """
+    Get the R² for each variable
+
+    Parameters:
+    --------------------------------------------------------
+    df : pandas.DataFrame
+        DataFrame containing the data.
+
+    labels : array-like
+        Cluster labels for each observation.
+
+    Returns:
+    --------------------------------------------------------
+    r2_vars : pandas.Series
+        Series containing the R² for each variable.
+    """
+    sst_vars = get_ss_variables(df)
+    ssw_vars = np.sum(df.groupby(labels).apply(get_ss_variables))
+    return 1 - ssw_vars/sst_vars
