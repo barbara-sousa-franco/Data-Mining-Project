@@ -313,7 +313,7 @@ def get_r2_hc(df, link_method, max_nclus, min_nclus=1, dist="euclidean"):
     for i in range(min_nclus, max_nclus+1):  # iterate over desired ncluster range
         
 
-        cluster = AgglomerativeClustering(linkage=link_method, metric=dist, n_clusters=i, random_state=1)
+        cluster = AgglomerativeClustering(linkage=link_method, metric=dist, n_clusters=i)
  
         hclabels = cluster.fit_predict(df[feats])
     
@@ -428,7 +428,8 @@ def plot_dendogram(linkage_matrix, y_threshold, distance):
 
     sns.set()
   
- 
+    plt.figure(figsize=(16, 8))
+    
     dendrogram(linkage_matrix, truncate_mode='level', p=5, color_threshold=y_threshold, above_threshold_color='k')
      
     # Add horizontal line for threshold
