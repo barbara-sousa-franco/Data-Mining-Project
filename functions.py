@@ -61,6 +61,8 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # Set random seeds for reproducibility
+import random
+random.seed(1)
 np.random.seed(1)
 torch.manual_seed(1)
 
