@@ -19,8 +19,8 @@ This dashboard shows the final customer segmentation using all features.
 
 @st.cache_data
 def load_data():
-    df_unscaled = pd.read_csv("data/all_customers_labels_not_scaled.csv")
-    df_scaled = pd.read_csv("data/all_customers_labels.csv")
+    df_unscaled = pd.read_csv("AIAI_Bonus_Point_5/data/all_customers_labels_not_scaled.csv")
+    df_scaled = pd.read_csv("AIAI_Bonus_Point_5/data/all_customers_labels.csv")
     
     df = df_unscaled.copy()
     df["value_cluster"] = df_scaled["value_labels"]
