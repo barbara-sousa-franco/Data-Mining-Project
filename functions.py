@@ -61,13 +61,8 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # Set random seeds for reproducibility
-import random
-random.seed(1)
 np.random.seed(1)
 torch.manual_seed(1)
-
-
-
 
 
 
@@ -1085,12 +1080,10 @@ def train_autoencoder(X_scaled, device, hidden_dim=32, latent_dim=5, lr=1e-3, ba
         Best training loss achieved during training.
     
     '''
-    g = torch.Generator()
-    g.manual_seed(1)
-
+   
     X_t = torch.tensor(X_scaled, dtype=torch.float32)
     ds = TensorDataset(X_t, X_t)  # input == target (reconstrução)
-    dl = DataLoader(ds, batch_size=batch_size, shuffle=True, generator=g)
+    dl = DataLoader(ds, batch_size=batch_size, shuffle=True)
 
     model = AutoEncoder(input_dim=X_scaled.shape[1], hidden_dim=hidden_dim, latent_dim=latent_dim).to(device)
     optim = torch.optim.Adam(model.parameters(), lr=lr)
