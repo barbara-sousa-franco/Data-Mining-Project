@@ -6,25 +6,26 @@ from sklearn.manifold import TSNE
 
 st.set_page_config(page_title="AIAI Airlines - Final Segmentation", layout="wide")
 
-st.title(" AIAI Airlines Final Customer Segmentation Dashboard")
+st.title("AIAI Airlines Final Customer Segmentation Dashboard")
 
 st.markdown("""
-This dashboard presents the **final unified customer segmentation** (your selected model) for all customers.
+This dashboard presents the **final unified customer segmentation** for all customers.
 
 - Interactive 3D visualization using all features (t-SNE default)
-- Filter by value-based or behavioral pre-segments if desired
-- Real-time filtering and detailed segment profiles
+- Option to manually select 3 features
+- Optional view restricted to Value-Based or Behavioral pre-segment
+- Real-time attribute filtering and detailed segment profiles
 """)
 
 @st.cache_data
 def load_data():
-    df_unscaled = pd.read_csv("AIAI_Bonus_Point_5/data/all_customers_labels_not_scaled.csv")
-    df_scaled = pd.read_csv("AIAI_Bonus_Point_5/data/all_customers_labels.csv")
+    df_unscaled = pd.read_csv("data/all_customers_labels_not_scaled.csv")
+    df_scaled = pd.read_csv("data/all_customers_labels.csv")
     
     df = df_unscaled.copy()
     df["value_cluster"] = df_scaled["value_labels"]
     df["behav_cluster"] = df_scaled["behav_labels"]
-    df["cluster"] = df_scaled["final_cluster_labels"]   
+    df["cluster"] = df_scaled["final_cluster_labels"]
     
     return df
 
@@ -32,24 +33,26 @@ df = load_data()
 
 filtered_df = df.copy()
 
-# Optional filters for value/behavioral pre-segments
-st.sidebar.header("Optional Pre-Segment Filters")
-col1, col2 = st.sidebar.columns(2)
+st.sidebar.header("View Restriction (Optional)")
+pre_segment_view = st.sidebar.radio(
+    "Show customers from:",
+    ["All customers", "Value-Based pre-segment only", "Behavioral pre-segment only"]
+)
 
-with col1:
-    value_options = ["All"] + sorted(df["value_cluster"].unique().tolist())
-    selected_value = st.selectbox("Value-Based Pre-Segment", value_options, index=0)
-    
-with col2:
-    behav_options = ["All"] + sorted(df["behav_cluster"].unique().tolist())
-    selected_behav = st.selectbox("Behavioral Pre-Segment", behav_options, index=0)
+if pre_segment_view == "Value-Based pre-segment ":
+    value_selected = st.sidebar.selectbox(
+        "Select Value-Based pre-segment",
+        sorted(df["value_cluster"].unique())
+    )
+    filtered_df = filtered_df[filtered_df["value_cluster"] == value_selected]
 
-if selected_value != "All":
-    filtered_df = filtered_df[filtered_df["value_cluster"] == selected_value]
-if selected_behav != "All":
-    filtered_df = filtered_df[filtered_df["behav_cluster"] == selected_behav]
+elif pre_segment_view == "Behavioral pre-segment ":
+    behav_selected = st.sidebar.selectbox(
+        "Select Behavioral pre-segment",
+        sorted(df["behav_cluster"].unique())
+    )
+    filtered_df = filtered_df[filtered_df["behav_cluster"] == behav_selected]
 
-# Real-time attribute filtering
 st.sidebar.header("Real-time Filtering by Attributes")
 features = [col for col in df.columns if col not in ["value_cluster", "behav_cluster", "cluster"]]
 
@@ -67,11 +70,10 @@ if len(numeric_cols) < 3:
     st.error("Not enough numeric features.")
     st.stop()
 
-# 3D view mode
 view_mode = st.radio("3D View Mode", ["All Features (t-SNE)", "Custom 3 Features"], horizontal=True)
 
-if view_mode == "All Features (t-SNE)":
-    with st.spinner("Computing t-SNE "):
+if view_mode == "All Features":
+    with st.spinner("Computing t-SNE..."):
         scaler = StandardScaler()
         scaled_data = scaler.fit_transform(filtered_df[numeric_cols])
         tsne = TSNE(n_components=3, perplexity=30, max_iter=1000, random_state=42)
@@ -85,7 +87,7 @@ if view_mode == "All Features (t-SNE)":
     })
     
     x, y, z = "TSNE1", "TSNE2", "TSNE3"
-    title = "3D View – Final Segmentation"
+    title = "3D View – Final Segmentation (All Features via t-SNE)"
 else:
     variance = filtered_df[numeric_cols].var().sort_values(ascending=False)
     top3 = variance.index[:3].tolist()
@@ -108,11 +110,11 @@ else:
 st.subheader(title)
 
 custom_colors = [
-    "#1f77b4",  
-    "#9467bd",  
-    "#e377c2", 
-    "#ff7f0e",  
-    "#ffd700"   
+    "#1f77b4",
+    "#9467bd",
+    "#e377c2",
+    "#ff7f0e",
+    "#ffd700"
 ]
 
 fig = px.scatter_3d(
@@ -145,9 +147,9 @@ for cluster_id in sorted(filtered_df["cluster"].unique()):
         st.write("**Full Profile**")
         st.dataframe(cluster_data.drop(columns=["value_cluster", "behav_cluster", "cluster"]).describe().round(2))
 
-st.subheader("Export for Stakeholder Sharing")
+st.subheader("Export csv")
 st.download_button(
-    label="Download CSV ",
+    label="Download Filtered Data (CSV)",
     data=filtered_df.to_csv(index=False).encode(),
     file_name="final_segments_filtered.csv",
     mime="text/csv"
