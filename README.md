@@ -32,3 +32,6 @@ Atualize main
 - git push origin main
 
 
+
+Link for the dashboard:
+https://data-mining-project-sqywcswdyuxvbewkvh7uvu.streamlit.app/Value_Based_Segmentation
