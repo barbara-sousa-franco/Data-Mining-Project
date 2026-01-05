@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from sklearn.preprocessing import StandardScaler
-from sklearn.manifold import TSNE
+import umap
 
 st.set_page_config(page_title="AIAI Airlines - Final Segmentation", layout="wide")
 
@@ -11,7 +11,7 @@ st.title("AIAI Airlines Final Customer Segmentation Dashboard")
 st.markdown("""
 This dashboard presents the **final unified customer segmentation** for all customers.
 
-- Interactive 3D visualization using all features (t-SNE default)
+- Interactive 3D visualization using all features (UMAP default)
 - Option to manually select 3 features
 - Optional view restricted to Value-Based or Behavioral pre-segment
 - Real-time attribute filtering and detailed segment profiles
@@ -36,7 +36,7 @@ filtered_df = df.copy()
 st.sidebar.header("View Restriction (Optional)")
 pre_segment_view = st.sidebar.radio(
     "Show customers from:",
-    ["All customers", "Value-Based pre-segment only", "Behavioral pre-segment only"]
+    ["All customers", "Value-Based pre-segment ", "Behavioral pre-segment "]
 )
 
 if pre_segment_view == "Value-Based pre-segment ":
@@ -70,24 +70,24 @@ if len(numeric_cols) < 3:
     st.error("Not enough numeric features.")
     st.stop()
 
-view_mode = st.radio("3D View Mode", ["All Features (t-SNE)", "Custom 3 Features"], horizontal=True)
+view_mode = st.radio("3D View Mode", ["All Features (UMAP)", "Custom 3 Features"], horizontal=True)
 
-if view_mode == "All Features":
-    with st.spinner("Computing t-SNE..."):
+if view_mode == "All Features (UMAP)":
+    with st.spinner("Computing UMAP..."):
         scaler = StandardScaler()
         scaled_data = scaler.fit_transform(filtered_df[numeric_cols])
-        tsne = TSNE(n_components=3, perplexity=30, max_iter=1000, random_state=42)
-        tsne_components = tsne.fit_transform(scaled_data)
+        reducer = umap.UMAP(n_components=3, random_state=42)
+        umap_components = reducer.fit_transform(scaled_data)
     
     plot_data = pd.DataFrame({
-        "TSNE1": tsne_components[:, 0],
-        "TSNE2": tsne_components[:, 1],
-        "TSNE3": tsne_components[:, 2],
+        "UMAP1": umap_components[:, 0],
+        "UMAP2": umap_components[:, 1],
+        "UMAP3": umap_components[:, 2],
         "cluster": filtered_df["cluster"].astype(str)
     })
     
-    x, y, z = "TSNE1", "TSNE2", "TSNE3"
-    title = "3D View – Final Segmentation (All Features via t-SNE)"
+    x, y, z = "UMAP1", "UMAP2", "UMAP3"
+    title = "3D View – Final Segmentation"
 else:
     variance = filtered_df[numeric_cols].var().sort_values(ascending=False)
     top3 = variance.index[:3].tolist()
@@ -147,7 +147,7 @@ for cluster_id in sorted(filtered_df["cluster"].unique()):
         st.write("**Full Profile**")
         st.dataframe(cluster_data.drop(columns=["value_cluster", "behav_cluster", "cluster"]).describe().round(2))
 
-st.subheader("Export csv")
+st.subheader("Export CSV")
 st.download_button(
     label="Download Filtered Data (CSV)",
     data=filtered_df.to_csv(index=False).encode(),
