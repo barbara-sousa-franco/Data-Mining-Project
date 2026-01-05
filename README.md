@@ -24,6 +24,49 @@ flights. Providing strong first-flight incentives to activate enrolled but inact
 marketing strategies with the specific needs and behaviors of each customer segment, the airline can
 increase retention, enhance customer satisfaction, and maximize the value of its loyalty program.
 
+## **Data Preprocessing**  
+This part included dealing with incoherences, missing values, duplicates and feature engineering. Followed by outlier treatment with DBSCAN for multivariate outlier removal and capping at 1% and 99% for univariate and scalling with standardscaler.
+
+## **Clustering Strategy**  
+
+We started by defining the perspectives of the study: Value-Based and Behavioral Per-
+spectives. The Value-Based Perspective focuses on variables that reflect monetary contribution
+and overall value to the company and it includes the variables Customer Lifetime Value, PropCLV,
+TotalPoints, PropPoints, Months Since Enrollment, while Behavioral Perspective describes how cus-
+tomers interact with the business, emphasizing usage patterns, frequency of the activity and engage-
+ment over time, defined by Recency Months, NumFlights Max, NumFlightsWithCompanions Max, Ra-
+tio Flights Companions, Ratio Points Redeemed, PropNrFlights, PropNrFlightsWithCompanions, Mean-
+DistancePerFlight, DiversitySeason.  
+
+In addition to clustering from both perspectives, this analysis compares two datasets: one including
+only active customers and another including both active and cancelled customers. This comparison
+evaluates whether incorporating cancelled customers improves the identification of churn risk. However,
+only active customers are considered in the final clustering solution and marketing strategies. Customers
+with zero flights were previously removed and are added only in the final stage.  
+
+Kmeans, Hierarchical, Mean-Shift, HDBSCAN, GMM, SOM with Kmeans and Hierarchical and Autoencoders were applied.
+
+## **Clustering Results**
+
+Across all evaluated clustering techniques, K-Means, Self-Organizing Maps and Autoencoders consis-
+tently achieved the best balance between cluster separation, stability and interpretability. Autoencoders
+results were evaluated in it’s own report for a more thorough explanation. The K-Means’ solutions were
+chosen for the value-based and behavioral segmentation of all customers while the SOM’s solution was
+chosen for the behavioral segmentation of the active customers. Finally, the Autoenconder achieved the
+best results for the value-based segmentation of the active customers. After
+selecting these 4 solutions we moved on to the merging of the segments. For both strategies, the den-
+dograms suggested 5 as the best number of clusters for the final solution. Consequently, we
+applied the Hierarchical clustering with 5 clusters for both and mapped the results to the original data
+points. For the strategy with all the customers, we produced clusters that were notably imbalanced with
+the larger cluster containing 11516 customers and the smallest 592. The same happened with the active
+customers, with 10859 and 33 being the maximum and minimum value counts for the clusters. However,
+we decided to keep these solutions and see in the profiling if the differences between them are significant
+enough to justify the cluster imbalance.  
+
+After this we profiled the clusters and chose the best strategy.
+
+
+
 ## **Final Clusters**
 
 **Cluster 0 - Jet Lag Legends** :This cluster is composed of long-tenured, highly loyal customers with by far the highest
@@ -107,4 +150,5 @@ like the ones in Cluster 3.
 
 ## **Link for the dashboard:**
 https://data-mining-project-sqywcswdyuxvbewkvh7uvu.streamlit.app/Value_Based_Segmentation
+
 
