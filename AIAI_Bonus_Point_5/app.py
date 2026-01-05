@@ -1,54 +1,60 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
+import umap
 
-st.set_page_config(page_title="AIAI Airlines - Customer Segmentation", layout="wide")
+st.set_page_config(page_title="AIAI Airlines - Final Segmentation", layout="wide")
 
-st.title("🛫 AIAI Airlines Customer Segmentation Dashboard")
+st.title("AIAI Airlines Final Customer Segmentation Dashboard")
 
 st.markdown("""
-This dashboard shows the final customer segmentation using all features.
+This dashboard presents the **final unified customer segmentation** for all customers.
 
-- **Default 3D view**: All features reduced to 3 dimensions (PCA) for global cluster view
-- **Custom view**: Choose any 3 features manually
-- Switch between Final, Value-Based, or Behavioral segmentation
-- Real-time filtering and segment profiles
+- Interactive 3D visualization using all features (UMAP default)
+- Option to manually select 3 features
+- Optional view restricted to Value-Based or Behavioral pre-segment
+- Real-time attribute filtering and detailed segment profiles
 """)
 
 @st.cache_data
 def load_data():
-    df_unscaled = pd.read_csv("AIAI_Bonus_Point_5/data/all_customers_labels_not_scaled.csv")
-    df_scaled = pd.read_csv("AIAI_Bonus_Point_5/data/all_customers_labels.csv")
+    df_unscaled = pd.read_csv("data/all_customers_labels_not_scaled.csv")
+    df_scaled = pd.read_csv("data/all_customers_labels.csv")
     
     df = df_unscaled.copy()
     df["value_cluster"] = df_scaled["value_labels"]
     df["behav_cluster"] = df_scaled["behav_labels"]
-    df["final_cluster"] = df_scaled["final_cluster_labels"]
+    df["cluster"] = df_scaled["final_cluster_labels"]
     
     return df
 
 df = load_data()
 
-# View selector
-view = st.radio(
-    "Select segmentation view:",
-    ["Final Unified Segmentation", "Value-Based Segmentation", "Behavioral Segmentation"],
-    horizontal=True
-)
-
-cluster_col = {
-    "Final Unified Segmentation": "final_cluster",
-    "Value-Based Segmentation": "value_cluster",
-    "Behavioral Segmentation": "behav_cluster"
-}[view]
-
 filtered_df = df.copy()
 
-# Filtering
+st.sidebar.header("View Restriction (Optional)")
+pre_segment_view = st.sidebar.radio(
+    "Show customers from:",
+    ["All customers", "Value-Based pre-segment ", "Behavioral pre-segment "]
+)
+
+if pre_segment_view == "Value-Based pre-segment ":
+    value_selected = st.sidebar.selectbox(
+        "Select Value-Based pre-segment",
+        sorted(df["value_cluster"].unique())
+    )
+    filtered_df = filtered_df[filtered_df["value_cluster"] == value_selected]
+
+elif pre_segment_view == "Behavioral pre-segment ":
+    behav_selected = st.sidebar.selectbox(
+        "Select Behavioral pre-segment",
+        sorted(df["behav_cluster"].unique())
+    )
+    filtered_df = filtered_df[filtered_df["behav_cluster"] == behav_selected]
+
 st.sidebar.header("Real-time Filtering by Attributes")
-features = [col for col in df.columns if col not in ["value_cluster", "behav_cluster", "final_cluster"]]
+features = [col for col in df.columns if col not in ["value_cluster", "behav_cluster", "cluster"]]
 
 for feature in features:
     if df[feature].nunique() < 15:
@@ -64,24 +70,24 @@ if len(numeric_cols) < 3:
     st.error("Not enough numeric features.")
     st.stop()
 
-# 3D view mode
-view_mode = st.radio("3D View Mode", ["All Features (PCA)", "Custom 3 Features"], horizontal=True)
+view_mode = st.radio("3D View Mode", ["All Features (UMAP)", "Custom 3 Features"], horizontal=True)
 
-if view_mode == "All Features (PCA)":
-    scaler = StandardScaler()
-    scaled_data = scaler.fit_transform(filtered_df[numeric_cols])
-    pca = PCA(n_components=3)
-    pca_components = pca.fit_transform(scaled_data)
+if view_mode == "All Features (UMAP)":
+    with st.spinner("Computing UMAP..."):
+        scaler = StandardScaler()
+        scaled_data = scaler.fit_transform(filtered_df[numeric_cols])
+        reducer = umap.UMAP(n_components=3, random_state=42)
+        umap_components = reducer.fit_transform(scaled_data)
     
     plot_data = pd.DataFrame({
-        "PC1": pca_components[:, 0],
-        "PC2": pca_components[:, 1],
-        "PC3": pca_components[:, 2],
-        "cluster": filtered_df[cluster_col].astype(str)
+        "UMAP1": umap_components[:, 0],
+        "UMAP2": umap_components[:, 1],
+        "UMAP3": umap_components[:, 2],
+        "cluster": filtered_df["cluster"].astype(str)
     })
     
-    x, y, z = "PC1", "PC2", "PC3"
-    title = f"3D View – {view} (All Features via PCA)"
+    x, y, z = "UMAP1", "UMAP2", "UMAP3"
+    title = "3D View – Final Segmentation"
 else:
     variance = filtered_df[numeric_cols].var().sort_values(ascending=False)
     top3 = variance.index[:3].tolist()
@@ -97,19 +103,18 @@ else:
     scaler = StandardScaler()
     plot_data = filtered_df.copy()
     plot_data[numeric_cols] = scaler.fit_transform(filtered_df[numeric_cols])
-    plot_data["cluster"] = filtered_df[cluster_col].astype(str)
+    plot_data["cluster"] = filtered_df["cluster"].astype(str)
     
-    title = f"3D View – {view} (Custom Features)"
+    title = "3D View – Final Segmentation (Custom Features)"
 
 st.subheader(title)
 
-# Exact colors from your notebook t-SNE plot
 custom_colors = [
-    "#1f77b4",  # dark blue (Cluster 0)
-    "#9467bd",  # purple (Cluster 1)
-    "#e377c2",  # red/pink (Cluster 2)
-    "#ff7f0e",  # orange (Cluster 3)
-    "#ffd700"   # yellow (Cluster 4)
+    "#1f77b4",
+    "#9467bd",
+    "#e377c2",
+    "#ff7f0e",
+    "#ffd700"
 ]
 
 fig = px.scatter_3d(
@@ -131,21 +136,21 @@ fig.update_layout(
 )
 st.plotly_chart(fig, use_container_width=True)
 
-st.subheader("Customer Segment Profiles")
-for cluster_id in sorted(filtered_df[cluster_col].unique()):
-    cluster_data = filtered_df[filtered_df[cluster_col] == cluster_id]
+st.subheader("Final Customer Segment Profiles")
+for cluster_id in sorted(filtered_df["cluster"].unique()):
+    cluster_data = filtered_df[filtered_df["cluster"] == cluster_id]
     n = len(cluster_data)
     with st.expander(f"Customer Segment {int(cluster_id)} – {n:,} customers"):
-        st.write("Key Characteristics (Averages)")
-        avg = cluster_data.drop(columns=[cluster_col, "value_cluster", "behav_cluster", "final_cluster"]).mean(numeric_only=True).round(2)
+        st.write("**Key Characteristics (Averages)**")
+        avg = cluster_data.drop(columns=["value_cluster", "behav_cluster", "cluster"]).mean(numeric_only=True).round(2)
         st.dataframe(avg.to_frame(name="Average"))
-        st.write("Full Profile")
-        st.dataframe(cluster_data.drop(columns=[cluster_col, "value_cluster", "behav_cluster", "final_cluster"]).describe().round(2))
+        st.write("**Full Profile**")
+        st.dataframe(cluster_data.drop(columns=["value_cluster", "behav_cluster", "cluster"]).describe().round(2))
 
-st.subheader("Export for Stakeholder Sharing")
+st.subheader("Export CSV")
 st.download_button(
     label="Download Filtered Data (CSV)",
     data=filtered_df.to_csv(index=False).encode(),
-    file_name=f"{view.lower().replace(' ', '_')}_filtered.csv",
+    file_name="final_segments_filtered.csv",
     mime="text/csv"
 )
